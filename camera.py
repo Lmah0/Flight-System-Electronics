@@ -1,3 +1,6 @@
+# Built to sync with GCS2024 in SUAV repo
+# Built for raspberry pi OS (Linux)
+
 from picamera2 import Picamera2, Preview
 import sys
 import time
@@ -14,23 +17,36 @@ from os import path
 
 UDP_PORT = 5005
 IMAGE_PATH = "./images/"
-
-state = types.SimpleNamespace()
-state.last_time = 0
-state.lat = 0
-state.lon
-
-# Built to sync with GCS2024 in SUAV repo
-# Built for raspberry pi OS (Linux)
-
-app = Flask(__name__)
+DELAY = 2
 
 camera_state = 0  # 0: off, 1: on
 picture_id = 0
 picam2 = None
 lock = threading.Lock()  # Thread locking for synchronizing shared resources
 gcs_url = "http://192.168.1.76:80"
-DELAY = 2
+
+state = types.SimpleNamespace()
+state.last_time = 0
+state.lat = 0
+state.lon = 0
+state.rel_alt = 0
+state.alt = 0
+state.roll = 0
+state.pitch = 0
+state.yaw = 0
+state.dlat = 0
+state.dlon = 0
+state.dalt = 0
+state.heading = 0
+state.image_number = 0
+
+app = Flask(__name__)
+
+@app.route('/cameraOff', methods=['POST'])
+def stop_camera():
+    global camera_state
+    with lock:
+        camera_state = 0
 
 @app.route('/cameraOn', methods=['POST'])
 def trigger_camera():
@@ -48,12 +64,6 @@ def trigger_camera():
         start_time = time.time()
         current_time = take_and_send_picture()
         time.sleep(DELAY - (start_time - current_time))  # 1 picture per second
-
-@app.route('/cameraOff', methods=['POST'])
-def stop_camera():
-    global camera_state
-    with lock:
-        camera_state = 0
 
 def take_and_send_picture():
     global picture_id, picam2
@@ -133,5 +143,5 @@ def receive_vehicle_position(json_path):
 if __name__ == "__main__":
     if len(sys.argv) == 2:
         gcs_url = sys.argv[1]
-        
+
     app.run(debug=True, host='0.0.0.0', threaded=True)
