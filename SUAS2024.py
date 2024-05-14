@@ -1,7 +1,5 @@
 # Built to sync with GCS2024 in SUAV repo
-# Built for raspberry pi OS
-
-# Works in conjunction with Pixhawk SUAV location module (requirement for location fetching)
+# Built for raspberry pi OS (Linux)
 
 # Built by Liam Mah (May 2024)
 
@@ -23,12 +21,28 @@ import sys
 import time
 import requests
 from threading import Thread
+import RPi.GPIO as GPIO
+GPIO.setwarnings(False)
 
 UDP_PORT = 5005
 DELAY = 1
+CW = 1 # Clockwise stepper rotation
+CCW = 0 # Counter-clockwise stepper rotation
+DIR1 = 27 # Direction pin of motor 1
+STEP1 = 17 # Step pin of motor 1
+SPR = 200 # Steps per revolution
+STEPPER_DELAY = 1/2000 # Generic delay (lower = faster spin)
+picam2 = None
 
-gcs_url = "http://192.168.1.65:80"
+# GPIO Motor Setup
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(DIR1, GPIO.OUT) # Set DIR1 pin as output
+GPIO.setup(STEP1, GPIO.OUT) # Set STEP1 pin as output
+# ----
 
+gcs_url = "http://192.168.1.65:80" # Web process API url (RocketM5)
+
+# Dictionary to maintain vehicle state
 vehicle_data = {
         "last_time": 0,
         "lat": 0,
@@ -45,27 +59,61 @@ vehicle_data = {
 }
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
+CORS(app, resources={r"/*": {"origins": "*"}}) # Overriding CORS for external access
 
 
-@app.route('/Test', methods=['GET'])
-def hello():
-        return jsonify({"message": "hello world"})
+@app.route('/stepperUp', methods=['POST']) # Stepper motor reels up
+def reel_up():
+        data = request.json
+        try:
+                rotations = int(data['rotations'])
+        except Exception as e:
+                return ({'message': 'Error. Invalid input.'}), 400 # 400 BadRequest
 
-@app.route('/cameraOn', methods=['POST'])
+        GPIO.output(DIR1, CCW)                 #Set direction to SPIN (CW OR CCW)
+        for x in range(SPR * rotations):
+                y = x / (SPR * rotations)                # Y is the percentage through the movement
+                damping = 4 * (y - 0.5)**2 + 1     # smoothing formula
+                GPIO.output(STEP1, GPIO.HIGH)  # MOVEMENT SCRIPT
+                time.sleep(STEPPER_DELAY * damping)
+                GPIO.output(STEP1, GPIO.LOW)
+                time.sleep(STEPPER_DELAY * damping)
+        return ({'message': 'Success!'}), 200
+
+@app.route('/stepperDown', methods=['POST']) # Stepper motor drops payload
+def reel_down():
+        data =request.json
+        try:
+                rotations = int(data['rotations'])
+        except Exception as e:
+                return ({'message': 'Error. Invalid input.'}), 400 # 400 BadRequest
+        GPIO.output(DIR1, CW)                 #Set direction to SPIN (CW OR CCW)
+        for x in range(SPR * rotations):
+                y = x / (SPR * rotations)                # Y is the percentage through the movement
+                damping = 4 * (y - 0.5)**2 + 1     # smoothing formula
+                GPIO.output(STEP1, GPIO.HIGH)  # MOVEMENT SCRIPT
+                time.sleep(STEPPER_DELAY * damping)
+                GPIO.output(STEP1, GPIO.LOW)
+                time.sleep(STEPPER_DELAY * damping)
+        return ({'message': 'Success!'}), 200
+
+@app.route('/cameraOn', methods=['POST']) # Turns on camera, API body is number of pics requested
 def trigger_camera():
+        global picam2
         data = request.json
         try:
                 amount_of_pictures_requested = int(data["amount_of_pictures"])
         except Exception as e:
-                exit(1)
-
-        picam2 = Picamera2()
-        camera_config = picam2.create_still_configuration()
-        picam2.configure(camera_config)
-        picam2.start_preview(Preview.NULL)
-        picam2.start()
-        time.sleep(1)
+                return ({'message': 'Error. Invalid input.'}), 400 # 400 BadRequest
+        if picam2 is None:
+                picam2 = Picamera2()
+                camera_config = picam2.create_still_configuration()
+                picam2.configure(camera_config)
+                picam2.start_preview(Preview.NULL)
+                picam2.start()
+                time.sleep(1)
+        else:
+                picam2.start()
 
         for i in range(amount_of_pictures_requested):
                 start_time = time.time()
@@ -74,6 +122,7 @@ def trigger_camera():
                 delay_time = DELAY - time_elapsed_since_start
                 if delay_time > 0:
                         time.sleep(delay_time)  # 1 picture per second
+        picam2.stop()
         return ({'message': 'Success!'}), 200
 
 def take_and_send_picture(i, picam2):
@@ -104,7 +153,7 @@ def take_and_send_picture(i, picam2):
 
         return time.time()
 
-def receive_vehicle_position():
+def receive_vehicle_position(): # Actively runs and receives live vehicle data on a separate thread
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind(("127.0.0.1", UDP_PORT))
 
