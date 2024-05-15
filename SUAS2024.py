@@ -183,5 +183,5 @@ if __name__ == "__main__":
 
     position_thread = Thread(target=receive_vehicle_position, daemon=True)
     position_thread.start()
-
+    time.sleep(2)
     app.run(debug=True, host='0.0.0.0')
