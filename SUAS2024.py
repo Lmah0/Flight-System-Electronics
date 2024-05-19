@@ -22,6 +22,7 @@ import time
 import requests
 from threading import Thread
 import RPi.GPIO as GPIO
+GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
 
 UDP_PORT = 5005
@@ -32,6 +33,11 @@ DIR1 = 27 # Direction pin of motor 1
 STEP1 = 17 # Step pin of motor 1
 SPR = 200 # Steps per revolution
 STEPPER_DELAY = 1/2000 # Generic delay (lower = faster spin)
+mode = (14,15,18)
+GPIO.setup(mode, GPIO.OUT)
+resolution = {'Full': (0,0,0)} #not the while dict, just wrote fullsteo for now
+
+GPIO.output(mode,resolution['Full']) # Picking full step
 picam2 = None
 
 # GPIO Motor Setup
@@ -40,7 +46,7 @@ GPIO.setup(DIR1, GPIO.OUT) # Set DIR1 pin as output
 GPIO.setup(STEP1, GPIO.OUT) # Set STEP1 pin as output
 # ----
 
-gcs_url = "http://192.168.1.65:80" # Web process API url (RocketM5)
+gcs_url = "http://192.168.1.64:80" # Web process API url (RocketM5)
 
 # Dictionary to maintain vehicle state
 vehicle_data = {
@@ -153,29 +159,30 @@ def take_and_send_picture(i, picam2):
 
         return time.time()
 
-def receive_vehicle_position(): # Actively runs and receives live vehicle data on a separate thread
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.bind(("127.0.0.1", UDP_PORT))
+def receive_vehicle_position(): # Actively runs and receives live vehicle data on a separate threads
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
-    data = sock.recvfrom(1024)
-    items = data[0].decode()[1:-1].split(",")
-    message_time = float(items[0])
+        sock.bind(("127.0.0.1", UDP_PORT))
+        data = sock.recvfrom(1024)
+        items = data[0].decode()[1:-1].split(",")
+        message_time = float(items[0])
 
-    if message_time <= vehicle_data["last_time"]:
-        return
+        if message_time <= vehicle_data["last_time"]:
+                return
 
-    vehicle_data["last_time"] = message_time
-    vehicle_data["lat"] = float(items[1])
-    vehicle_data["lon"] = float(items[2])
-    vehicle_data["rel_alt"] = float(items[3])
-    vehicle_data["alt"] = float(items[4])
-    vehicle_data["roll"] = float(items[5])
-    vehicle_data["pitch"] = float(items[6])
-    vehicle_data["yaw"] = float(items[7])
-    vehicle_data["dlat"] = float(items[8])
-    vehicle_data["dlon"] = float(items[9])
-    vehicle_data["dalt"] = float(items[10])
-    vehicle_data["heading"] = float(items[11])
+        vehicle_data["last_time"] = message_time
+        vehicle_data["lat"] = float(items[1])
+        vehicle_data["lon"] = float(items[2])
+        vehicle_data["rel_alt"] = float(items[3])
+        vehicle_data["alt"] = float(items[4])
+        vehicle_data["roll"] = float(items[5])
+        vehicle_data["pitch"] = float(items[6])
+        vehicle_data["yaw"] = float(items[7])
+        vehicle_data["dlat"] = float(items[8])
+        vehicle_data["dlon"] = float(items[9])
+        vehicle_data["dalt"] = float(items[10])
+        vehicle_data["heading"] = float(items[11])
 
 if __name__ == "__main__":
     if len(sys.argv) == 2:
