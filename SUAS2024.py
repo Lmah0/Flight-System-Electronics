@@ -172,8 +172,8 @@ def receive_vehicle_position(): # Actively runs and receives live vehicle data o
                 return
 
         vehicle_data["last_time"] = message_time
-        vehicle_data["lat"] = float(items[1])
-        vehicle_data["lon"] = float(items[2])
+        vehicle_data["lon"] = float(items[1])
+        vehicle_data["lat"] = float(items[2])
         vehicle_data["rel_alt"] = float(items[3])
         vehicle_data["alt"] = float(items[4])
         vehicle_data["roll"] = float(items[5])
