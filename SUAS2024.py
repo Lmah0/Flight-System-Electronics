@@ -133,7 +133,7 @@ def trigger_camera():
 
 def take_and_send_picture(i, picam2):
         print('capturing image %i' % i)
-        filepath = '/home/pi/Desktop/SUAV/picam/images/' + f'capture{i:04}.jpg'
+        filepath = '/home/pi/Desktop/SUAV/picam/images/' + f'capture{i}.jpg'
         jsonpath = filepath.rsplit('.', 1)[0] + '.json'
         image = picam2.capture_image('main')
 
