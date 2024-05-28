@@ -4,22 +4,25 @@
 # Built by Liam Mah (May 2024)
 
 from picamera2 import Picamera2, Preview
-import sys
-import time
-import requests
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+import requests
 import threading
 import socket
 import json
+import sys
+import time
+from io import BytesIO
 from os import path
 import argparse
 import RPi.GPIO as GPIO
+
 import Operations.arm as arm
 import Operations.initialize as initialize
 import Operations.mode as autopilot_mode
 import Operations.takeoff as takeoff
 import Operations.waypoint as waypoint
+
 
 GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
@@ -204,6 +207,34 @@ def take_and_send_picture(i, picam2):
     ]
     headers = {}
     response = requests.request("POST", f"{gcs_url}/submit", headers=headers, data=payload, files=files)
+
+    return time.time()
+
+def take_and_send_picture_no_local(i, picam2):
+    print('capturing image %i' % i)
+    
+    # Capture image into a BytesIO object
+    image_stream = BytesIO()
+    image = picam2.capture_image('main')
+    image.save(image_stream, format='JPEG')
+    image_stream.seek(0)
+
+    # Serialize vehicle data into a JSON string
+    vehicle_data_json = json.dumps(vehicle_data)
+
+    # Send image to GCS
+    files = {
+        'file': ('capture.jpg', image_stream, 'image/jpeg'),
+    }
+    headers = {}
+    response = requests.request("POST", f"{gcs_url}/submit", headers=headers, files=files)
+
+    # Send JSON to GCS
+    json_stream = BytesIO(vehicle_data_json.encode('utf-8'))
+    json_files = {
+        'file': ('data.json', json_stream, 'application/json'),
+    }
+    response = requests.request("POST", f"{gcs_url}/submit", headers=headers, files=json_files)
 
     return time.time()
 
