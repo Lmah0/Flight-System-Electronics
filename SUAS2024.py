@@ -22,6 +22,11 @@ import time
 import requests
 from threading import Thread
 import RPi.GPIO as GPIO
+import Operations.arm as arm
+import Operations.initialize as initialize
+import Operations.mode as _mode
+import Operations.takeoff as takeoff
+import Operations.waypoint as waypoint
 GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
 
@@ -32,13 +37,14 @@ CCW = 0 # Counter-clockwise stepper rotation
 DIR1 = 27 # Direction pin of motor 1
 STEP1 = 17 # Step pin of motor 1
 SPR = 200 # Steps per revolution
-STEPPER_DELAY = 1/2000 # Generic delay (lower = faster spin)
+STEPPER_DELAY = 1/1750 # Generic delay (lower = faster spin)
 mode = (14,15,18)
 GPIO.setup(mode, GPIO.OUT)
 resolution = {'Full': (0,0,0)} #not the while dict, just wrote fullsteo for now
 
 GPIO.output(mode,resolution['Full']) # Picking full step
 picam2 = None
+vehicle_connection = None
 
 # GPIO Motor Setup
 GPIO.setmode(GPIO.BCM)
@@ -46,22 +52,22 @@ GPIO.setup(DIR1, GPIO.OUT) # Set DIR1 pin as output
 GPIO.setup(STEP1, GPIO.OUT) # Set STEP1 pin as output
 # ----
 
-gcs_url = "http://192.168.1.64:80" # Web process API url (RocketM5)
+gcs_url = "http://192.168.1.65:80" # Web process API url (RocketM5)
 
 # Dictionary to maintain vehicle state
 vehicle_data = {
-        "last_time": 0,
-        "lat": 0,
-        "lon": 0,
-        "rel_alt": 0,
-        "alt": 0,
-        "roll": 0,
-        "pitch": 0,
-        "yaw": 0,
-        "dlat": 0,
-        "dlon": 0,
-        "dalt": 0,
-        "heading": 0
+	"last_time": 0,
+	"lat": 0,
+	"lon": 0,
+	"rel_alt": 0,
+	"alt": 0,
+	"roll": 0,
+	"pitch": 0,
+	"yaw": 0,
+	"dlat": 0,
+	"dlon": 0,
+	"dalt": 0,
+	"heading": 0
 }
 
 app = Flask(__name__)
@@ -70,125 +76,174 @@ CORS(app, resources={r"/*": {"origins": "*"}}) # Overriding CORS for external ac
 
 @app.route('/stepperUp', methods=['POST']) # Stepper motor reels up
 def reel_up():
-        data = request.json
-        try:
-                rotations = int(data['rotations'])
-        except Exception as e:
-                return ({'message': 'Error. Invalid input.'}), 400 # 400 BadRequest
-
-        GPIO.output(DIR1, CCW)                 #Set direction to SPIN (CW OR CCW)
-        for x in range(SPR * rotations):
-                y = x / (SPR * rotations)                # Y is the percentage through the movement
-                damping = 4 * (y - 0.5)**2 + 1     # smoothing formula
-                GPIO.output(STEP1, GPIO.HIGH)  # MOVEMENT SCRIPT
-                time.sleep(STEPPER_DELAY * damping)
-                GPIO.output(STEP1, GPIO.LOW)
-                time.sleep(STEPPER_DELAY * damping)
-        return ({'message': 'Success!'}), 200
-
+	data = request.json
+	try:
+		rotations = int(data['rotations'])
+	except Exception as e:
+		return ({'message': 'Error. Invalid input.'}), 400 # 400 BadRequest
+	
+	GPIO.output(DIR1, CCW)                 #Set direction to SPIN (CW OR CCW)
+	for x in range(SPR * rotations):
+		y = x / (SPR * rotations)                # Y is the percentage through the movement
+		#damping = 4 * (y - 0.5)**2 + 1     # smoothing formula
+		damping = 1
+		GPIO.output(STEP1, GPIO.HIGH)  # MOVEMENT SCRIPT
+		time.sleep(STEPPER_DELAY * damping)
+		GPIO.output(STEP1, GPIO.LOW)
+		time.sleep(STEPPER_DELAY * damping)
+	return ({'message': 'Success!'}), 200
+	
 @app.route('/stepperDown', methods=['POST']) # Stepper motor drops payload
 def reel_down():
-        data =request.json
-        try:
-                rotations = int(data['rotations'])
-        except Exception as e:
-                return ({'message': 'Error. Invalid input.'}), 400 # 400 BadRequest
-        GPIO.output(DIR1, CW)                 #Set direction to SPIN (CW OR CCW)
-        for x in range(SPR * rotations):
-                y = x / (SPR * rotations)                # Y is the percentage through the movement
-                damping = 4 * (y - 0.5)**2 + 1     # smoothing formula
-                GPIO.output(STEP1, GPIO.HIGH)  # MOVEMENT SCRIPT
-                time.sleep(STEPPER_DELAY * damping)
-                GPIO.output(STEP1, GPIO.LOW)
-                time.sleep(STEPPER_DELAY * damping)
-        return ({'message': 'Success!'}), 200
-
+	data =request.json
+	try:
+		rotations = int(data['rotations'])
+	except Exception as e:
+		return ({'message': 'Error. Invalid input.'}), 400 # 400 BadRequest
+	GPIO.output(DIR1, CW)                 #Set direction to SPIN (CW OR CCW)
+	for x in range(SPR * rotations):
+		y = x / (SPR * rotations)                # Y is the percentage through the movement
+		#damping = 4 * (y - 0.5)**2 + 1     # smoothing formula
+		damping = 1
+		GPIO.output(STEP1, GPIO.HIGH)  # MOVEMENT SCRIPT
+		time.sleep(STEPPER_DELAY * damping)
+		GPIO.output(STEP1, GPIO.LOW)
+		time.sleep(STEPPER_DELAY * damping)
+	return ({'message': 'Success!'}), 200
+	
 @app.route('/cameraOn', methods=['POST']) # Turns on camera, API body is number of pics requested
 def trigger_camera():
-        global picam2
-        data = request.json
-        try:
-                amount_of_pictures_requested = int(data["amount_of_pictures"])
-        except Exception as e:
-                return ({'message': 'Error. Invalid input.'}), 400 # 400 BadRequest
-        if picam2 is None:
-                picam2 = Picamera2()
-                camera_config = picam2.create_still_configuration()
-                picam2.configure(camera_config)
-                picam2.start_preview(Preview.NULL)
-                picam2.start()
-                time.sleep(1)
-        else:
-                picam2.start()
+	global picam2
+	data = request.json
+	try:
+		amount_of_pictures_requested = int(data["amount_of_pictures"])
+	except Exception as e:
+		return ({'message': 'Error. Invalid input.'}), 400 # 400 BadRequest
+	if picam2 is None:		
+		picam2 = Picamera2()
+		camera_config = picam2.create_still_configuration()
+		picam2.configure(camera_config)
+		picam2.start_preview(Preview.NULL)
+		picam2.start()
+		time.sleep(1)
+	else:
+		picam2.start()
+	
+	for i in range(amount_of_pictures_requested):
+		start_time = time.time()
+		current_time = take_and_send_picture(i, picam2)
+		time_elapsed_since_start = current_time - start_time
+		delay_time = DELAY - time_elapsed_since_start
+		if delay_time > 0:
+			time.sleep(delay_time)  # 1 picture per second
+	picam2.stop()
+	return ({'message': 'Success!'}), 200
 
-        for i in range(amount_of_pictures_requested):
-                start_time = time.time()
-                current_time = take_and_send_picture(i, picam2)
-                time_elapsed_since_start = current_time - start_time
-                delay_time = DELAY - time_elapsed_since_start
-                if delay_time > 0:
-                        time.sleep(delay_time)  # 1 picture per second
-        picam2.stop()
-        return ({'message': 'Success!'}), 200
+@app.route('/coordinate_waypoint', methods=['POST'])
+def coordinate_waypoint():
+    data = request.json
+    try:
+        latitude = float(data['latitude'])
+        longitude = float(data['longitude'])
+        altitude = 25
+    except Exception as e:
+        return jsonify({'error': 'Invalid data'}), 400
+    
+    waypoint.absolute_movement(vehicle_connection, latitude, longitude, altitude)
+    print(f"latitude {latitude}")
+    print(f"longitude: {longitude}")
+
+    return jsonify({'message': 'Waypoint set successfully'}), 200
+
+@app.route('/set_mode', methods=['POST'])
+def set_mode():
+    data = request.json
+    try:
+        mode_id = int(data['mode_id'])
+        print(mode_id)
+        print(autopilot_mode.set_mode(vehicle_connection, mode_id))
+    except Exception as e:
+        return jsonify({'error': "Invalid operation."}), 400
+    
+    return jsonify({'message': 'Mode set successfully'}), 200
+
 
 def take_and_send_picture(i, picam2):
-        print('capturing image %i' % i)
-        filepath = '/home/pi/Desktop/SUAV/picam/images/' + f'capture{i:04}.jpg'
-        jsonpath = filepath.rsplit('.', 1)[0] + '.json'
-        image = picam2.capture_image('main')
+	print('capturing image %i' % i)
+	filepath = '/home/pi/Desktop/SUAV/picam/images/' + f'capture{i}.jpg'
+	jsonpath = filepath.rsplit('.', 1)[0] + '.json'
+	image = picam2.capture_image('main')
+	
+	image.save(filepath, None)
+	
+	with open(jsonpath, 'w') as json_file:
+		json.dump(vehicle_data, json_file)
 
-        image.save(filepath, None)
+	# Send image to GCS
+	payload = {}
+	files = [
+		('file', (path.basename(filepath), open(filepath, 'rb'), 'image/jpeg'))
+	]
+	headers = {}
+	response = requests.request("POST", f"{gcs_url}/submit", headers=headers, data=payload, files=files)
 
-        with open(jsonpath, 'w') as json_file:
-                json.dump(vehicle_data, json_file)
+	payload = {}
+	files = [
+		('file', (path.basename(jsonpath), open(jsonpath, 'rb'), 'application/json'))
+	]
+	headers = {}
+	response = requests.request("POST", f"{gcs_url}/submit", headers=headers, data=payload, files=files)
 
-        # Send image to GCS
-        payload = {}
-        files = [
-                ('file', (path.basename(filepath), open(filepath, 'rb'), 'image/jpeg'))
-        ]
-        headers = {}
-        response = requests.request("POST", f"{gcs_url}/submit", headers=headers, data=payload, files=files)
-
-        payload = {}
-        files = [
-                ('file', (path.basename(jsonpath), open(jsonpath, 'rb'), 'application/json'))
-        ]
-        headers = {}
-        response = requests.request("POST", f"{gcs_url}/submit", headers=headers, data=payload, files=files)
-
-        return time.time()
+	return time.time()
 
 def receive_vehicle_position(): # Actively runs and receives live vehicle data on a separate threads
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+	sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+	sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    
+    
+	#try:
+	#	sock.close()
+	#except Exception as e:
+	#	print("Error, socket in use. Recovering.")
+	
+	sock.bind(("127.0.0.1", UDP_PORT))	
+	data = sock.recvfrom(1024)
+	items = data[0].decode()[1:-1].split(",")
+	message_time = float(items[0])
+    
+	if message_time <= vehicle_data["last_time"]:
+		return
+    
+	vehicle_data["last_time"] = message_time
+	vehicle_data["lon"] = float(items[1])
+	vehicle_data["lat"] = float(items[2])
+	vehicle_data["rel_alt"] = float(items[3])
+	vehicle_data["alt"] = float(items[4])
+	vehicle_data["roll"] = float(items[5])
+	vehicle_data["pitch"] = float(items[6])
+	vehicle_data["yaw"] = float(items[7])
+	vehicle_data["dlat"] = float(items[8])
+	vehicle_data["dlon"] = float(items[9])
+	vehicle_data["dalt"] = float(items[10])
+	vehicle_data["heading"] = float(items[11])
 
-        sock.bind(("127.0.0.1", UDP_PORT))
-        data = sock.recvfrom(1024)
-        items = data[0].decode()[1:-1].split(",")
-        message_time = float(items[0])
 
-        if message_time <= vehicle_data["last_time"]:
-                return
-
-        vehicle_data["last_time"] = message_time
-        vehicle_data["lat"] = float(items[1])
-        vehicle_data["lon"] = float(items[2])
-        vehicle_data["rel_alt"] = float(items[3])
-        vehicle_data["alt"] = float(items[4])
-        vehicle_data["roll"] = float(items[5])
-        vehicle_data["pitch"] = float(items[6])
-        vehicle_data["yaw"] = float(items[7])
-        vehicle_data["dlat"] = float(items[8])
-        vehicle_data["dlon"] = float(items[9])
-        vehicle_data["dalt"] = float(items[10])
-        vehicle_data["heading"] = float(items[11])
 
 if __name__ == "__main__":
     if len(sys.argv) == 2:
         gcs_url = sys.argv[1]
-
     position_thread = Thread(target=receive_vehicle_position, daemon=True)
     position_thread.start()
     time.sleep(2)
+
+    vehicle_port = 'udp:127.0.0.1:5006'
+
+    print(f"Attempting to connect to port: {vehicle_port}")
+    vehicle_connection = initialize.connect_to_vehicle(vehicle_port)
+    print("Vehicle connection established.")
+    retVal = initialize.verify_connection(vehicle_connection)
+    print("Vehicle connection verified.")
+
+	# if retVal == False then exit
+
     app.run(debug=True, host='0.0.0.0')
