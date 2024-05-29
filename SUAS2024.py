@@ -12,7 +12,7 @@ import socket
 import json
 import sys
 import time
-from io import BytesIO
+# from io import BytesIO
 from os import path
 import argparse
 import RPi.GPIO as GPIO
@@ -210,33 +210,33 @@ def take_and_send_picture(i, picam2):
 
     return time.time()
 
-def take_and_send_picture_no_local(i, picam2):
-    print('capturing image %i' % i)
+# def take_and_send_picture_no_local(i, picam2):
+#     print('capturing image %i' % i)
     
-    # Capture image into a BytesIO object
-    image_stream = BytesIO()
-    image = picam2.capture_image('main')
-    image.save(image_stream, format='JPEG')
-    image_stream.seek(0)
+#     # Capture image into a BytesIO object
+#     image_stream = BytesIO()
+#     image = picam2.capture_image('main')
+#     image.save(image_stream, format='JPEG')
+#     image_stream.seek(0)
 
-    # Serialize vehicle data into a JSON string
-    vehicle_data_json = json.dumps(vehicle_data)
+#     # Serialize vehicle data into a JSON string
+#     vehicle_data_json = json.dumps(vehicle_data)
 
-    # Send image to GCS
-    files = {
-        'file': ('capture.jpg', image_stream, 'image/jpeg'),
-    }
-    headers = {}
-    response = requests.request("POST", f"{gcs_url}/submit", headers=headers, files=files)
+#     # Send image to GCS
+#     files = {
+#         'file': ('capture.jpg', image_stream, 'image/jpeg'),
+#     }
+#     headers = {}
+#     response = requests.request("POST", f"{gcs_url}/submit", headers=headers, files=files)
 
-    # Send JSON to GCS
-    json_stream = BytesIO(vehicle_data_json.encode('utf-8'))
-    json_files = {
-        'file': ('data.json', json_stream, 'application/json'),
-    }
-    response = requests.request("POST", f"{gcs_url}/submit", headers=headers, files=json_files)
+#     # Send JSON to GCS
+#     json_stream = BytesIO(vehicle_data_json.encode('utf-8'))
+#     json_files = {
+#         'file': ('data.json', json_stream, 'application/json'),
+#     }
+#     response = requests.request("POST", f"{gcs_url}/submit", headers=headers, files=json_files)
 
-    return time.time()
+#     return time.time()
 
 def receive_vehicle_position():  # Actively runs and receives live vehicle data on a separate thread
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
