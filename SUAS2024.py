@@ -12,7 +12,7 @@ import socket
 import json
 import sys
 import time
-# from io import BytesIO
+from io import BytesIO
 from os import path
 import argparse
 import RPi.GPIO as GPIO
@@ -130,7 +130,7 @@ def trigger_camera():
 
     for i in range(amount_of_pictures_requested):
         start_time = time.time()
-        current_time = take_and_send_picture(i, picam2)
+        current_time = take_and_send_picture_no_local(i, picam2)
         time_elapsed_since_start = current_time - start_time
         delay_time = DELAY - time_elapsed_since_start
         if delay_time > 0:
@@ -182,61 +182,61 @@ def set_mode_and_waypoint():
 
     return jsonify({'message': 'Guided mode and waypoint set successfully'}), 200
 
-def take_and_send_picture(i, picam2):
-    print('capturing image %i' % i)
-    filepath = '/home/pi/Desktop/SUAV/picam/images/' + f'capture{i}.jpg'
-    jsonpath = filepath.rsplit('.', 1)[0] + '.json'
-    image = picam2.capture_image('main')
-
-    image.save(filepath, None)
-
-    with open(jsonpath, 'w') as json_file:
-        json.dump(vehicle_data, json_file)
-
-    # Send image to GCS
-    payload = {}
-    files = [
-        ('file', (path.basename(filepath), open(filepath, 'rb'), 'image/jpeg'))
-    ]
-    headers = {}
-    response = requests.request("POST", f"{gcs_url}/submit", headers=headers, data=payload, files=files)
-
-    payload = {}
-    files = [
-        ('file', (path.basename(jsonpath), open(jsonpath, 'rb'), 'application/json'))
-    ]
-    headers = {}
-    response = requests.request("POST", f"{gcs_url}/submit", headers=headers, data=payload, files=files)
-
-    return time.time()
-
-# def take_and_send_picture_no_local(i, picam2):
+# def take_and_send_picture(i, picam2):
 #     print('capturing image %i' % i)
-    
-#     # Capture image into a BytesIO object
-#     image_stream = BytesIO()
+#     filepath = '/home/pi/Desktop/SUAV/picam/images/' + f'capture{i}.jpg'
+#     jsonpath = filepath.rsplit('.', 1)[0] + '.json'
 #     image = picam2.capture_image('main')
-#     image.save(image_stream, format='JPEG')
-#     image_stream.seek(0)
 
-#     # Serialize vehicle data into a JSON string
-#     vehicle_data_json = json.dumps(vehicle_data)
+#     image.save(filepath, None)
+
+#     with open(jsonpath, 'w') as json_file:
+#         json.dump(vehicle_data, json_file)
 
 #     # Send image to GCS
-#     files = {
-#         'file': ('capture.jpg', image_stream, 'image/jpeg'),
-#     }
+#     payload = {}
+#     files = [
+#         ('file', (path.basename(filepath), open(filepath, 'rb'), 'image/jpeg'))
+#     ]
 #     headers = {}
-#     response = requests.request("POST", f"{gcs_url}/submit", headers=headers, files=files)
+#     response = requests.request("POST", f"{gcs_url}/submit", headers=headers, data=payload, files=files)
 
-#     # Send JSON to GCS
-#     json_stream = BytesIO(vehicle_data_json.encode('utf-8'))
-#     json_files = {
-#         'file': ('data.json', json_stream, 'application/json'),
-#     }
-#     response = requests.request("POST", f"{gcs_url}/submit", headers=headers, files=json_files)
+#     payload = {}
+#     files = [
+#         ('file', (path.basename(jsonpath), open(jsonpath, 'rb'), 'application/json'))
+#     ]
+#     headers = {}
+#     response = requests.request("POST", f"{gcs_url}/submit", headers=headers, data=payload, files=files)
 
 #     return time.time()
+
+def take_and_send_picture_no_local(i, picam2):
+    print('capturing image %i' % i)
+    
+    # Capture image into a BytesIO object
+    image_stream = BytesIO()
+    image = picam2.capture_image('main')
+    image.save(image_stream, format='JPEG')
+    image_stream.seek(0)
+
+    # Serialize vehicle data into a JSON string
+    vehicle_data_json = json.dumps(vehicle_data)
+
+    # Send image to GCS
+    files = {
+        'file': ('capture.jpg', image_stream, 'image/jpeg'),
+    }
+    headers = {}
+    response = requests.request("POST", f"{gcs_url}/submit", headers=headers, files=files)
+
+    # Send JSON to GCS
+    json_stream = BytesIO(vehicle_data_json.encode('utf-8'))
+    json_files = {
+        'file': ('data.json', json_stream, 'application/json'),
+    }
+    response = requests.request("POST", f"{gcs_url}/submit", headers=headers, files=json_files)
+
+    return time.time()
 
 def receive_vehicle_position():  # Actively runs and receives live vehicle data on a separate thread
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
