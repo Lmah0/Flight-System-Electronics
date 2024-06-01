@@ -12,7 +12,7 @@ import socket
 import json
 import sys
 import time
-from io import BytesIO
+# from io import BytesIO
 from os import path
 import argparse
 import RPi.GPIO as GPIO
@@ -33,8 +33,10 @@ CW = 1  # Clockwise stepper rotation
 CCW = 0  # Counter-clockwise stepper rotation
 DIR1 = 27  # Direction pin of motor 1
 STEP1 = 17  # Step pin of motor 1
+DIR2 = 24
+STEP2 = 23
 SPR = 200  # Steps per revolution
-STEPPER_DELAY = 1 / 1750  # Generic delay (lower = faster spin)
+STEPPER_DELAY = 1 / 3500  # Generic delay (lower = faster spin)
 mode = (14, 15, 18)
 GPIO.setup(mode, GPIO.OUT)
 resolution = {'Full': (0, 0, 0)}  # not the whole dict, just wrote fullstep for now
@@ -47,6 +49,8 @@ vehicle_connection = None
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(DIR1, GPIO.OUT)  # Set DIR1 pin as output
 GPIO.setup(STEP1, GPIO.OUT)  # Set STEP1 pin as output
+GPIO.setup(DIR2, GPIO.OUT)    #Set DIR2 pin as output 
+GPIO.setup(STEP2, GPIO.OUT)   #Set STEP2 pin as output
 # ----
 
 gcs_url = "http://192.168.1.65:80"  # Web process API url (RocketM5)
@@ -71,8 +75,8 @@ vehicle_data = {
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})  # Overriding CORS for external access
 
-@app.route('/stepperUp', methods=['POST'])  # Stepper motor reels up
-def reel_up():
+@app.route('/stepperUpMotor1', methods=['POST'])  # Stepper motor reels up
+def reel_up_motor1():
     data = request.json
     try:
         rotations = int(data['rotations'])
@@ -82,16 +86,16 @@ def reel_up():
     GPIO.output(DIR1, CCW)  # Set direction to SPIN (CW OR CCW)
     for x in range(SPR * rotations):
         y = x / (SPR * rotations)  # Y is the percentage through the movement
-        # damping = 4 * (y - 0.5)**2 + 1  # smoothing formula
-        damping = 1
+        damping = 4 * (y - 0.5)**2 + 1  # smoothing formula
+        # damping = 1
         GPIO.output(STEP1, GPIO.HIGH)  # MOVEMENT SCRIPT
         time.sleep(STEPPER_DELAY * damping)
         GPIO.output(STEP1, GPIO.LOW)
         time.sleep(STEPPER_DELAY * damping)
     return {'message': 'Success!'}, 200
 
-@app.route('/stepperDown', methods=['POST'])  # Stepper motor drops payload
-def reel_down():
+@app.route('/stepperDownMotor1', methods=['POST'])  # Stepper motor drops payload
+def reel_down_motor1():
     data = request.json
     try:
         rotations = int(data['rotations'])
@@ -101,11 +105,49 @@ def reel_down():
     GPIO.output(DIR1, CW)  # Set direction to SPIN (CW OR CCW)
     for x in range(SPR * rotations):
         y = x / (SPR * rotations)  # Y is the percentage through the movement
-        # damping = 4 * (y - 0.5)**2 + 1  # smoothing formula
-        damping = 1
+        damping = 4 * (y - 0.5)**2 + 1  # smoothing formula
+        # damping = 1
         GPIO.output(STEP1, GPIO.HIGH)  # MOVEMENT SCRIPT
         time.sleep(STEPPER_DELAY * damping)
         GPIO.output(STEP1, GPIO.LOW)
+        time.sleep(STEPPER_DELAY * damping)
+    return {'message': 'Success!'}, 200
+
+@app.route('/stepperUpMotor2', methods=['POST'])  # Stepper motor reels up
+def reel_up_motor2():
+    data = request.json
+    try:
+        rotations = int(data['rotations'])
+    except Exception as e:
+        return {'message': 'Error. Invalid input.'}, 400  # 400 BadRequest
+
+    GPIO.output(DIR2, CCW)  # Set direction to SPIN (CW OR CCW)
+    for x in range(SPR * rotations):
+        y = x / (SPR * rotations)  # Y is the percentage through the movement
+        damping = 4 * (y - 0.5)**2 + 1  # smoothing formula
+        # damping = 1
+        GPIO.output(STEP2, GPIO.HIGH)  # MOVEMENT SCRIPT
+        time.sleep(STEPPER_DELAY * damping)
+        GPIO.output(STEP2, GPIO.LOW)
+        time.sleep(STEPPER_DELAY * damping)
+    return {'message': 'Success!'}, 200
+
+@app.route('/stepperDownMotor2', methods=['POST'])  # Stepper motor drops payload
+def reel_down_motor2():
+    data = request.json
+    try:
+        rotations = int(data['rotations'])
+    except Exception as e:
+        return {'message': 'Error. Invalid input.'}, 400  # 400 BadRequest
+
+    GPIO.output(DIR2, CW)  # Set direction to SPIN (CW OR CCW)
+    for x in range(SPR * rotations):
+        y = x / (SPR * rotations)  # Y is the percentage through the movement
+        damping = 4 * (y - 0.5)**2 + 1  # smoothing formula
+        # damping = 1
+        GPIO.output(STEP2, GPIO.HIGH)  # MOVEMENT SCRIPT
+        time.sleep(STEPPER_DELAY * damping)
+        GPIO.output(STEP2, GPIO.LOW)
         time.sleep(STEPPER_DELAY * damping)
     return {'message': 'Success!'}, 200
 
@@ -130,7 +172,7 @@ def trigger_camera():
 
     for i in range(amount_of_pictures_requested):
         start_time = time.time()
-        current_time = take_and_send_picture_no_local(i, picam2)
+        current_time = take_and_send_picture(i, picam2)
         time_elapsed_since_start = current_time - start_time
         delay_time = DELAY - time_elapsed_since_start
         if delay_time > 0:
@@ -182,61 +224,61 @@ def set_mode_and_waypoint():
 
     return jsonify({'message': 'Guided mode and waypoint set successfully'}), 200
 
-# def take_and_send_picture(i, picam2):
-#     print('capturing image %i' % i)
-#     filepath = '/home/pi/Desktop/SUAV/picam/images/' + f'capture{i}.jpg'
-#     jsonpath = filepath.rsplit('.', 1)[0] + '.json'
-#     image = picam2.capture_image('main')
-
-#     image.save(filepath, None)
-
-#     with open(jsonpath, 'w') as json_file:
-#         json.dump(vehicle_data, json_file)
-
-#     # Send image to GCS
-#     payload = {}
-#     files = [
-#         ('file', (path.basename(filepath), open(filepath, 'rb'), 'image/jpeg'))
-#     ]
-#     headers = {}
-#     response = requests.request("POST", f"{gcs_url}/submit", headers=headers, data=payload, files=files)
-
-#     payload = {}
-#     files = [
-#         ('file', (path.basename(jsonpath), open(jsonpath, 'rb'), 'application/json'))
-#     ]
-#     headers = {}
-#     response = requests.request("POST", f"{gcs_url}/submit", headers=headers, data=payload, files=files)
-
-#     return time.time()
-
-def take_and_send_picture_no_local(i, picam2):
+def take_and_send_picture(i, picam2):
     print('capturing image %i' % i)
-    
-    # Capture image into a BytesIO object
-    image_stream = BytesIO()
+    filepath = '/home/pi/Desktop/SUAV/picam/images/' + f'capture{i}.jpg'
+    jsonpath = filepath.rsplit('.', 1)[0] + '.json'
     image = picam2.capture_image('main')
-    image.save(image_stream, format='JPEG')
-    image_stream.seek(0)
 
-    # Serialize vehicle data into a JSON string
-    vehicle_data_json = json.dumps(vehicle_data)
+    image.save(filepath, None)
+
+    with open(jsonpath, 'w') as json_file:
+        json.dump(vehicle_data, json_file)
 
     # Send image to GCS
-    files = {
-        'file': ('capture.jpg', image_stream, 'image/jpeg'),
-    }
+    payload = {}
+    files = [
+        ('file', (path.basename(filepath), open(filepath, 'rb'), 'image/jpeg'))
+    ]
     headers = {}
-    response = requests.request("POST", f"{gcs_url}/submit", headers=headers, files=files)
+    response = requests.request("POST", f"{gcs_url}/submit", headers=headers, data=payload, files=files)
 
-    # Send JSON to GCS
-    json_stream = BytesIO(vehicle_data_json.encode('utf-8'))
-    json_files = {
-        'file': ('data.json', json_stream, 'application/json'),
-    }
-    response = requests.request("POST", f"{gcs_url}/submit", headers=headers, files=json_files)
+    payload = {}
+    files = [
+        ('file', (path.basename(jsonpath), open(jsonpath, 'rb'), 'application/json'))
+    ]
+    headers = {}
+    response = requests.request("POST", f"{gcs_url}/submit", headers=headers, data=payload, files=files)
 
     return time.time()
+
+# def take_and_send_picture_no_local(i, picam2):
+#     print('capturing image %i' % i)
+    
+#     # Capture image into a BytesIO object
+#     image_stream = BytesIO()
+#     image = picam2.capture_image('main')
+#     image.save(image_stream, format='JPEG')
+#     image_stream.seek(0)
+
+#     # Serialize vehicle data into a JSON string
+#     vehicle_data_json = json.dumps(vehicle_data)
+
+#     # Send image to GCS
+#     files = {
+#         'file': ('capture.jpg', image_stream, 'image/jpeg'),
+#     }
+#     headers = {}
+#     response = requests.request("POST", f"{gcs_url}/submit", headers=headers, files=files)
+
+#     # Send JSON to GCS
+#     json_stream = BytesIO(vehicle_data_json.encode('utf-8'))
+#     json_files = {
+#         'file': ('data.json', json_stream, 'application/json'),
+#     }
+#     response = requests.request("POST", f"{gcs_url}/submit", headers=headers, files=json_files)
+
+#     return time.time()
 
 def receive_vehicle_position():  # Actively runs and receives live vehicle data on a separate thread
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
