@@ -12,7 +12,7 @@ import socket
 import json
 import sys
 import time
-# from io import BytesIO
+from io import BytesIO
 from os import path
 import argparse
 import RPi.GPIO as GPIO
@@ -222,7 +222,7 @@ def set_mode_and_waypoint():
     time.sleep(1)
     waypoint.absolute_movement(vehicle_connection, latitude, longitude, altitude)
 
-    return jsonify({'message': 'Guided mode and waypoint set successfully'}), 200
+    return jsonify({'message': f'Guided mode and waypoint set successfully. Flying to {latitude}, {longitude}'}), 200
 
 def take_and_send_picture(i, picam2):
     print('capturing image %i' % i)
