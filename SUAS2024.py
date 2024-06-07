@@ -207,23 +207,6 @@ def fly_waypoint():
 
     return jsonify({'message': 'Waypoint set successfully'}), 200
 
-@app.route('/set_mode_and_waypoint', methods=['POST'])  # Sets guided mode and flies waypoint at 25m (82ft)
-def set_mode_and_waypoint():
-    data = request.json
-    try:
-        latitude = float(data['latitude'])
-        longitude = float(data['longitude'])
-        altitude = 25
-    except Exception as e:
-        return jsonify({'error': 'Invalid data'}), 400
-
-    guided_mode = 4
-    autopilot_mode.set_mode(vehicle_connection, guided_mode)
-    time.sleep(1)
-    waypoint.absolute_movement(vehicle_connection, latitude, longitude, altitude)
-
-    return jsonify({'message': f'Guided mode and waypoint set successfully. Flying to {latitude}, {longitude}'}), 200
-
 def take_and_send_picture(i, picam2):
     print('capturing image %i' % i)
     filepath = '/home/pi/Desktop/SUAV/picam/images/' + f'capture{i}.jpg'
