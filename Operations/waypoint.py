@@ -7,6 +7,12 @@
 from pymavlink import mavutil
 import math
 
+class location:
+    def __init__(self, lat, lon, alt):
+        self.lat = lat
+        self.lon = lon
+        self.alt = alt
+
 def waypoint_progress(vehicle_connection):
     # PROMISES: Prints vehicle positioning updates to terminal
     # REQUIRES: Vehicle connection
@@ -36,8 +42,7 @@ def has_reached_target(current_pos, target_pos, tolerance=1.0):
     :return: True if the target position is reached within tolerance, False otherwise
     """
     distance = get_distance_metres(current_pos, target_pos)
-    alt_diff = abs(current_pos.alt - target_pos.alt)
-    return distance <= tolerance and alt_diff <= tolerance
+    return distance <= tolerance
 
 def wait_for_position(vehicle_connection, target_pos, tolerance=1.0):
     """
@@ -50,8 +55,8 @@ def wait_for_position(vehicle_connection, target_pos, tolerance=1.0):
     while True:
         msg = vehicle_connection.recv_match(type='GLOBAL_POSITION_INT', blocking=True)
         if msg:
-            current_pos = mavutil.mavlink.GLOBAL_POSITION_INT(
-                msg.lat / 1e7, msg.lon / 1e7, msg.alt / 1e3)
+            current_pos = location(
+                msg.lat / 1e7, msg.lon / 1e7, msg.relative_alt / 1e3)
             if has_reached_target(current_pos, target_pos, tolerance):
                 print("Target position reached")
                 return
@@ -106,6 +111,6 @@ def absolute_movement(vehicle_connection, latitude, longitude, altitude):
         0 # yaw rate: Ignore for now - yaw rate in rad/s
     ))
     if True: # Comment out if it fails during flight testing.
-        target_pos = mavutil.mavlink.GLOBAL_POSITION_INT(latitude, longitude, altitude)
+        target_pos = location(latitude, longitude, altitude)
         wait_for_position(vehicle_connection, target_pos)
 
