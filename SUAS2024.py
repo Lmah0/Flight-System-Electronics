@@ -193,6 +193,17 @@ def set_mode():
 
     return jsonify({'message': 'Mode set successfully'}), 200
 
+@app.route('/takeoff', methods=['POST'])
+def takeoff_vehicle():
+    data = request.json
+    try:
+        altitude = float(data['altitude'])
+        takeoff.takeoff(vehicle_connection, altitude)
+    except Exception as e:
+        return jsonify({'error': 'Invalid data'}), 400
+
+    return jsonify({'message': 'Takeoff successful'}), 200
+
 @app.route('/coordinate_waypoint', methods=['POST'])  # Flies waypoint at 25m (82ft)
 def fly_waypoint():
     data = request.json
