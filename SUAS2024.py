@@ -208,7 +208,7 @@ def fly_waypoint():
     try:
         latitude = float(data['latitude'])
         longitude = float(data['longitude'])
-        altitude = 25
+        altitude = float(data['altitude'])
     except Exception as e:
         return jsonify({'error': 'Invalid data'}), 400
 
