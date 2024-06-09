@@ -358,6 +358,18 @@ def take_and_send_picture_no_local(i, picam2):
 
 @app.route('/locator', methods=['GET'])
 def picture_locator():
+    global picam2
+
+    if picam2 is None:
+        picam2 = Picamera2()
+        camera_config = picam2.create_still_configuration()
+        picam2.configure(camera_config)
+        picam2.start_preview(Preview.NULL)
+        picam2.start()
+        time.sleep(1)
+    else:
+        picam2.start()
+
     try:
         image_stream = BytesIO()
         image = picam2.capture_image('main')
