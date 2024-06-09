@@ -37,7 +37,6 @@ STEP1 = 17  # Step pin of motor 1
 DIR2 = 24
 STEP2 = 23
 SPR = 200  # Steps per revolution
-STEPPER_DELAY = 1 / 3500  # Generic delay (lower = faster spin)
 mode = (14, 15, 18)
 GPIO.setup(mode, GPIO.OUT)
 resolution = {'Full': (0, 0, 0)}  # not the whole dict, just wrote fullstep for now
@@ -98,7 +97,12 @@ def stepper_motor_1():
     if speed < lower_limit or speed > upper_limit:
         return {'message': 'Error. Invalid speed. Speed above upper limit or below lower limit.'}, 400
     
+    if speed <= 0:
+        return {'message': 'Error. Invalid speed. Speed must be greater than 0.'}, 400
+    
     direction = stepper_directions[direction]
+
+    stepper_delay = 1 / speed  # Generic delay (lower = faster spin)
 
     GPIO.output(DIR1, direction)  # Set direction to SPIN (CW OR CCW)
     distance = distance / (DIAM * 3.1415926)  
@@ -106,9 +110,9 @@ def stepper_motor_1():
         y = x / (SPR * distance)  # Y is the percentage through the movement
         damping = 4 * (y - 0.5)**2 + 1  # smoothing formula
         GPIO.output(STEP1, GPIO.HIGH)  # MOVEMENT SCRIPT
-        time.sleep(STEPPER_DELAY * damping)
+        time.sleep(stepper_delay * damping)
         GPIO.output(STEP1, GPIO.LOW)
-        time.sleep(STEPPER_DELAY * damping)
+        time.sleep(stepper_delay * damping)
     return {'message': 'Success!'}, 200
 
 @app.route('/stepper_motor_2', methods=['POST'])  # Stepper motor 2 control
@@ -127,7 +131,12 @@ def stepper_motor_2():
     if speed < lower_limit or speed > upper_limit:
         return {'message': 'Error. Invalid speed. Speed above upper limit or below lower limit.'}, 400
 
+    if speed <= 0:
+        return {'message': 'Error. Invalid speed. Speed must be greater than 0.'}, 400
+
     direction = stepper_directions[direction]
+
+    stepper_delay = 1 / speed  # Generic delay (lower = faster spin)
 
     GPIO.output(DIR2, direction)
     distance = distance / (DIAM * 3.1415926)
@@ -135,12 +144,12 @@ def stepper_motor_2():
         y = x / (SPR * distance)  # Y is the percentage through the movement
         damping = 4 * (y - 0.5)**2 + 1  # smoothing formula
         GPIO.output(STEP2, GPIO.HIGH)  # MOVEMENT SCRIPT
-        time.sleep(STEPPER_DELAY * damping)
+        time.sleep(stepper_delay * damping)
         GPIO.output(STEP2, GPIO.LOW)
-        time.sleep(STEPPER_DELAY * damping)
+        time.sleep(stepper_delay * damping)
     return {'message': 'Success!'}, 200
 
-@app.route('/cameraOn', methods=['POST'])  # Turns on camera, API body is number of pics requested
+@app.route('/camera_on', methods=['POST'])  # Turns on camera, API body is number of pics requested
 def trigger_camera():
     global picam2
     data = request.json
