@@ -358,17 +358,22 @@ def take_and_send_picture_no_local(i, picam2):
 
 @app.route('/locator', methods=['GET'])
 def picture_locator():
-    image_stream = BytesIO()
-    image = picam2.capture_image('main')
-    image.save(image_stream, format='JPEG')
-    image_stream.seek(0)
+    try:
+        image_stream = BytesIO()
+        image = picam2.capture_image('main')
+        image.save(image_stream, format='JPEG')
+        image_stream.seek(0)
 
-    image_file = {
-        'file': (f'locator.jpg', image_stream, 'image/jpeg'),
-    }
+        image_file = {
+            'file': (f'locator.jpg', image_stream, 'image/jpeg'),
+        }
 
-    headers = {}
-    response = requests.request("POST", f"{gcs_url}/submit", headers=headers, files=image_file)
+        headers = {}
+        response = requests.request("POST", f"{gcs_url}/submit", headers=headers, files=image_file)
+    except Exception as e:
+        return {'message': 'Error. Could not capture and send image.'}, 400
+    
+    return {'message': 'Success!'}, 200
 
 def receive_vehicle_position():  # Actively runs and receives live vehicle data on a separate thread
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
