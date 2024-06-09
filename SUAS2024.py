@@ -30,10 +30,8 @@ GPIO.setwarnings(False)
 
 UDP_PORT = 5005
 
-diam = 0.03      #diameter of spool in meters 
+DIAM = 0.03      #diameter of spool in meters 
 DELAY = 1
-CW = 1  # Clockwise stepper rotation
-CCW = 0  # Counter-clockwise stepper rotation
 DIR1 = 27  # Direction pin of motor 1
 STEP1 = 17  # Step pin of motor 1
 DIR2 = 24
@@ -83,16 +81,27 @@ stepper_directions = {
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})  # Overriding CORS for external access
 
-@app.route('/stepperUpMotor1Distance', methods=['POST'])  # Stepper motor reels up
-def reel_up_motor1_distance():
+@app.route('/stepper_motor_1', methods=['POST'])  # Stepper motor 1 control
+def stepper_motor_1():
     data = request.json
     try:
         distance = float(data['distance'])
-    except Exception as e:
-        return {'message': 'Error. Invalid input.'}, 400  # 400 BadRequest
+        direction = str(data['direction'])
+        speed = int(data['speed'])
 
-    GPIO.output(DIR1, CCW)  # Set direction to SPIN (CW OR CCW)
-    distance = distance / (diam * 3.1415926)  
+    except Exception as e:
+        return {'message': 'Error. Invalid input.'}, 400
+    
+    lower_limit = 1000
+    upper_limit = 4000
+
+    if speed < lower_limit or speed > upper_limit:
+        return {'message': 'Error. Invalid speed. Speed above upper limit or below lower limit.'}, 400
+    
+    direction = stepper_directions[direction]
+
+    GPIO.output(DIR1, direction)  # Set direction to SPIN (CW OR CCW)
+    distance = distance / (DIAM * 3.1415926)  
     for x in range(ceil(SPR * distance)):
         y = x / (SPR * distance)  # Y is the percentage through the movement
         damping = 4 * (y - 0.5)**2 + 1  # smoothing formula
@@ -102,60 +111,29 @@ def reel_up_motor1_distance():
         time.sleep(STEPPER_DELAY * damping)
     return {'message': 'Success!'}, 200
 
-@app.route('/stepperDownMotor1Distance', methods=['POST'])  # Stepper motor drops payload
-def reel_down_motor1_distance():
+@app.route('/stepper_motor_2', methods=['POST'])  # Stepper motor 2 control
+def stepper_motor_2():
     data = request.json
     try:
         distance = float(data['distance'])
+        direction = str(data['direction'])
+        speed = int(data['speed'])
     except Exception as e:
-        return {'message': 'Error. Invalid input.'}, 400  # 400 BadRequest
+        return {'message': 'Error. Invalid input.'}, 400
 
-    GPIO.output(DIR1, CW)  # Set direction to SPIN (CW OR CCW)
-    distance = distance / (diam * 3.1415926)
+    lower_limit = 1000
+    upper_limit = 4000
+
+    if speed < lower_limit or speed > upper_limit:
+        return {'message': 'Error. Invalid speed. Speed above upper limit or below lower limit.'}, 400
+
+    direction = stepper_directions[direction]
+
+    GPIO.output(DIR2, direction)
+    distance = distance / (DIAM * 3.1415926)
     for x in range(ceil(SPR * distance)):
         y = x / (SPR * distance)  # Y is the percentage through the movement
         damping = 4 * (y - 0.5)**2 + 1  # smoothing formula
-        # damping = 1
-        GPIO.output(STEP1, GPIO.HIGH)  # MOVEMENT SCRIPT
-        time.sleep(STEPPER_DELAY * damping)
-        GPIO.output(STEP1, GPIO.LOW)
-        time.sleep(STEPPER_DELAY * damping)
-    return {'message': 'Success!'}, 200
-
-@app.route('/stepperUpMotor2Distance', methods=['POST'])  # Stepper motor reels up
-def reel_up_motor2_distance():
-    data = request.json
-    try:
-        distance = float(data['distance'])
-    except Exception as e:
-        return {'message': 'Error. Invalid input.'}, 400  # 400 BadRequest
-
-    GPIO.output(DIR2, CCW)  # Set direction to SPIN (CW OR CCW)
-    distance = distance / (diam * 3.1415926)
-    for x in range(ceil(SPR * distance)):
-        y = x / (SPR * distance)  # Y is the percentage through the movement
-        damping = 4 * (y - 0.5)**2 + 1  # smoothing formula
-        # damping = 1
-        GPIO.output(STEP2, GPIO.HIGH)  # MOVEMENT SCRIPT
-        time.sleep(STEPPER_DELAY * damping)
-        GPIO.output(STEP2, GPIO.LOW)
-        time.sleep(STEPPER_DELAY * damping)
-    return {'message': 'Success!'}, 200
-
-@app.route('/stepperDownMotor2Distance', methods=['POST'])  # Stepper motor drops payload
-def reel_down_motor2_distance():
-    data = request.json
-    try:
-        distance = float(data['distance'])
-    except Exception as e:
-        return {'message': 'Error. Invalid input.'}, 400  # 400 BadRequest
-
-    GPIO.output(DIR2, CW)  # Set direction to SPIN (CW OR CCW)
-    distance = distance / (diam * 3.1415926)
-    for x in range(ceil(SPR * distance)):
-        y = x / (SPR * distance)  # Y is the percentage through the movement
-        damping = 4 * (y - 0.5)**2 + 1  # smoothing formula
-        # damping = 1
         GPIO.output(STEP2, GPIO.HIGH)  # MOVEMENT SCRIPT
         time.sleep(STEPPER_DELAY * damping)
         GPIO.output(STEP2, GPIO.LOW)
