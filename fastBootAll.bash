@@ -5,3 +5,5 @@ python mavproxy.py --out=udp:127.0.0.1:5006 & # Run MAVProxy in background and o
 
 module load suav_location # Load the suav_location module for geolocation extraction
 
+cd Desktop/FlyTest
+python SUAS2024.py

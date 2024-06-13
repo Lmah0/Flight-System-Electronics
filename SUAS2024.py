@@ -72,7 +72,12 @@ vehicle_data = {
     "heading": 0
 }
 
-stepper_directions = {
+stepper_directions_1 = {
+    "UP": 0,
+    "DOWN": 1
+}
+
+stepper_directions_2 = {
     "UP": 0,
     "DOWN": 1
 }
@@ -100,11 +105,11 @@ def stepper_motor_1():
     if speed <= 0:
         return {'message': 'Error. Invalid speed. Speed must be greater than 0.'}, 400
     
-    direction = stepper_directions[direction]
+    bitwise_direction = stepper_directions_1[direction]
 
     stepper_delay = 1 / speed  # Generic delay (lower = faster spin)
 
-    GPIO.output(DIR1, direction)  # Set direction to SPIN (CW OR CCW)
+    GPIO.output(DIR1, bitwise_direction)  # Set direction to SPIN (CW OR CCW)
     distance = distance / (DIAM * 3.1415926)  
     for x in range(ceil(SPR * distance)):
         y = x / (SPR * distance)  # Y is the percentage through the movement
@@ -134,11 +139,11 @@ def stepper_motor_2():
     if speed <= 0:
         return {'message': 'Error. Invalid speed. Speed must be greater than 0.'}, 400
 
-    direction = stepper_directions[direction]
+    bitwise_direction = stepper_directions_2[direction]
 
     stepper_delay = 1 / speed  # Generic delay (lower = faster spin)
 
-    GPIO.output(DIR2, direction)
+    GPIO.output(DIR2, bitwise_direction)
     distance = distance / (DIAM * 3.1415926)
     for x in range(ceil(SPR * distance)):
         y = x / (SPR * distance)  # Y is the percentage through the movement
