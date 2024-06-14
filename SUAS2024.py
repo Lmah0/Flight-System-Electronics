@@ -24,6 +24,10 @@ import Operations.mode as autopilot_mode
 import Operations.takeoff as takeoff
 import Operations.waypoint as waypoint
 
+gcs_url = "http://192.168.1.65:80"  # Web process API url (RocketM5)
+vehicle_port = "udp:127.0.0.1:5006"  # Make sure to run mavproxy script with 'mavproxy.py --out=udp:127.0.0.1:5006'
+
+ALTITUDE = 25
 
 GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
@@ -52,9 +56,6 @@ GPIO.setup(STEP1, GPIO.OUT)  # Set STEP1 pin as output
 GPIO.setup(DIR2, GPIO.OUT)    #Set DIR2 pin as output 
 GPIO.setup(STEP2, GPIO.OUT)   #Set STEP2 pin as output
 # ----
-
-gcs_url = "http://192.168.1.65:80"  # Web process API url (RocketM5)
-vehicle_port = "udp:127.0.0.1:5006"  # Make sure to run mavproxy script with 'mavproxy.py --out=udp:127.0.0.1:5006'
 
 # Dictionary to maintain vehicle state
 vehicle_data = {
@@ -213,11 +214,10 @@ def fly_waypoint():
     try:
         latitude = float(data['latitude'])
         longitude = float(data['longitude'])
-        altitude = float(data['altitude'])
     except Exception as e:
         return jsonify({'error': 'Invalid data'}), 400
 
-    waypoint.absolute_movement(vehicle_connection, latitude, longitude, altitude)
+    waypoint.absolute_movement(vehicle_connection, latitude, longitude, ALTITUDE)
 
     return jsonify({'message': 'Waypoint set successfully'}), 200
 
