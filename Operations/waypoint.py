@@ -46,6 +46,7 @@ def absolute_movement(vehicle_connection, latitude, longitude, altitude):
     # PROMISES: The vehicle will navigate to a waypoint absolute to the current position
     # REQUIRES: Vehicle connection, latitude, longitude, altitude
     # Navigate to a waypoint at a set of coordinates using global positioning
+    print("Entering waypoint code...")
     vehicle_connection.mav.send(mavutil.mavlink.MAVLink_set_position_target_global_int_message(
         10, # vehicle_connection: Sender's system time in milliseconds since boot (doesn't really change much I think)
         vehicle_connection.target_system, # System ID of vehicle
@@ -65,5 +66,6 @@ def absolute_movement(vehicle_connection, latitude, longitude, altitude):
         0, # yaw: Ignore for now - controls yaw/heading in radians (with 0 being North/forwards)
         0 # yaw rate: Ignore for now - yaw rate in rad/s
     ))
+    print("Successfully sent waypoint command.")
 
     # waypoint_progress(vehicle_connection) # Comment out if you want to see live updates in Mission Planner

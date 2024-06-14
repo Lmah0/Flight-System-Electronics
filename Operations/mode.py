@@ -26,6 +26,5 @@ def set_mode(vehicle_connection, mode_id):
         0, # Param 6 - Unused, set to zero to populate all 7 parameters
         0 # Param 7 - Unused, set to zero to populate all 7 parameters
     )
-
     msg = vehicle_connection.recv_match(type='COMMAND_ACK', blocking=True) # Print command ACK to confirm successful execution
-    print(msg)
+    print(f"Switching to flight mode: {msg}")

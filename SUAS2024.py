@@ -211,15 +211,19 @@ def takeoff_vehicle():
 @app.route('/coordinate_waypoint', methods=['POST'])  # Flies waypoint at 25m (82ft)
 def fly_waypoint():
     data = request.json
+    print(f"Waypoint request JSON paylod: {data}")
     try:
         latitude = float(data['latitude'])
         longitude = float(data['longitude'])
+        print("Parsed latitude: {latitude}, longitude {longitude}")
     except Exception as e:
-        return jsonify({'error': 'Invalid data'}), 400
+        return jsonify({'error': f'Invalid data. Error {e}'}), 400
 
-    waypoint.absolute_movement(vehicle_connection, latitude, longitude, ALTITUDE)
-
-    return jsonify({'message': 'Waypoint set successfully'}), 200
+    try:
+        waypoint.absolute_movement(vehicle_connection, latitude, longitude, ALTITUDE)
+        return jsonify({'message': 'Waypoint set successfully'}), 200
+    except Exception as e:
+        return jsonify({'error': f'Failed to set waypoint. Error: {e}'}), 400
 
 def take_and_send_picture(i, picam2):
     print('capturing image %i' % i)
