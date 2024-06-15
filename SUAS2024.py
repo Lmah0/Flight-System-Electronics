@@ -215,12 +215,13 @@ def fly_waypoint():
     try:
         latitude = float(data['latitude'])
         longitude = float(data['longitude'])
+        altitude = float(data['altitude'])
         print("Parsed latitude: {latitude}, longitude {longitude}")
     except Exception as e:
         return jsonify({'error': f'Invalid data. Error {e}'}), 400
 
     try:
-        waypoint.absolute_movement(vehicle_connection, latitude, longitude, ALTITUDE)
+        waypoint.absolute_movement(vehicle_connection, latitude, longitude, altitude)
         return jsonify({'message': 'Waypoint set successfully'}), 200
     except Exception as e:
         return jsonify({'error': f'Failed to set waypoint. Error: {e}'}), 400
