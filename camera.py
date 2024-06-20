@@ -47,11 +47,6 @@ vehicle_data = {
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
-
-@app.route('/Test', methods=['GET'])
-def hello():
-        return jsonify({"message": "hello world"})
-
 @app.route('/cameraOn', methods=['POST'])
 def trigger_camera():
         data = request.json
