@@ -34,7 +34,7 @@ GPIO.setwarnings(False)
 
 UDP_PORT = 5005
 
-DIAM = 0.03      #diameter of spool in meters 
+DIAM = 0.03 # Diameter of spool in meters 
 DELAY = 1
 DIR1 = 27  # Direction pin of motor 1
 STEP1 = 17  # Step pin of motor 1
@@ -53,8 +53,8 @@ vehicle_connection = None
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(DIR1, GPIO.OUT)  # Set DIR1 pin as output
 GPIO.setup(STEP1, GPIO.OUT)  # Set STEP1 pin as output
-GPIO.setup(DIR2, GPIO.OUT)    #Set DIR2 pin as output 
-GPIO.setup(STEP2, GPIO.OUT)   #Set STEP2 pin as output
+GPIO.setup(DIR2, GPIO.OUT)    # Set DIR2 pin as output 
+GPIO.setup(STEP2, GPIO.OUT)   # Set STEP2 pin as output
 # ----
 
 # Dictionary to maintain vehicle state
@@ -227,6 +227,10 @@ def fly_waypoint():
         return jsonify({'error': f'Failed to set waypoint. Error: {e}'}), 400
 
 def take_and_send_picture(i, picam2):
+    '''
+    Takes a picture and sends it back to the GCS. It saves the images locally on the Raspberry Pi, and can cause the SD card on
+    the Raspberry Pi to fill and corrupt. Be careful when using this.
+    '''
     print('capturing image %i' % i)
     filepath = '/home/pi/Desktop/SUAV/picam/images/' + f'capture{i}.jpg'
     jsonpath = filepath.rsplit('.', 1)[0] + '.json'
@@ -255,6 +259,10 @@ def take_and_send_picture(i, picam2):
     return time.time()
 
 def take_and_send_picture_no_local(i, picam2):
+    '''
+    Takes a picture and sends it back to the GCS. It does not save any images locally on the Raspberry Pi, and is used to prevent
+    the SD card on the Raspberry Pi from filling and overloading the storage (and corrupting data).
+    '''
     print('capturing image %i' % i)
     
     # Capture image into a BytesIO object
@@ -314,6 +322,10 @@ def picture_locator():
     return {'message': 'Success!'}, 200
 
 def receive_vehicle_position():  # Actively runs and receives live vehicle data on a separate thread
+    '''
+    This function is ran on a second thread to actively retrieve and update the vehicle state. This vehicle state contains GPS and vehicle orientation.
+    These are pulled at the time of taking an image in order to geotag images and support target localization.
+    '''
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 

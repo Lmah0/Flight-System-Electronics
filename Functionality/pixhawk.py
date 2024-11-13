@@ -33,10 +33,8 @@ class suav_location(mp_module.MPModule):
             self.last_emitted = now
 
             if self.lat != 0:
-                #print("Current GPS Position: Lat={}, Lon={}, Relative Alt={}m".format(self.lat, self.lon, self.rel_alt))
-                #print("Current Attitude: Roll={}, Pitch={}, Yaw={}".format(self.roll, self.pitch, self.yaw))
                 self.send_data()
-
+    
     def mavlink_packet(self, m):
         '''handle mavlink packets'''
         if self.settings.target_system == 0 or self.settings.target_system == m.get_srcSystem():
@@ -59,14 +57,9 @@ class suav_location(mp_module.MPModule):
 
     def send_data(self):
         t = time.time()
-        # send to 5005 for image labeller
         image_data = (t, self.lon, self.lat, self.rel_alt, self.alt, self.roll, self.pitch, self.yaw, self.dlat, self.dlon, self.dalt, self.heading)
         image_message = f"{image_data}".encode()
-        self.sock.sendto(image_message, ("127.0.0.1", 5005))
-
-        # send to 5007 for drop system
-        # items = [self.lon, self.lat, self.rel_alt, self.dlat, self.dlon, self.dalt, self.heading, t]
-        # self.sock.sendto(self.encode_message(items), ("127.0.0.1", 5007))
+        self.sock.sendto(image_message, ("127.0.0.1", 5005)) # Hard coded to port 5005 (must open this port when initializing)
 
     def encode_message(self, items):
         message = ""
